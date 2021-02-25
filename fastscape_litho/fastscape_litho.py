@@ -170,7 +170,9 @@ def chiculation_SF(stack, receivers, nb_donors, donors, lengths, elevation, area
   for inode in stack:
     if(inode == receivers[inode] or area[inode] < minAcc):
       continue
-    chi[inode] = chi[receivers[inode]] + lengths[inode]/2 * ((A0/area[inode]) ** theta  - (A0/area[receivers[inode]]) ** theta ) 
+
+    chi[inode] = chi[receivers[inode]] + lengths[inode]/2 * ( ((A0/area[inode]) ** theta)  + ((A0/area[receivers[inode]]) ** theta) ) 
+
   return chi
 
 @nb.njit()
@@ -180,7 +182,7 @@ def ksn_calculation_SF(elevation, chi, receivers):
     irec = receivers [i]
     if(irec == i or chi[i] == 0):
       continue
-      
+
     ksn[i] = elevation[i] - elevation[irec]
     ksn[i] = ksn[i]/(chi[i] - chi[irec])
 
@@ -247,7 +249,7 @@ class Quicksn:
     self.is_multiple_flow = True if self.receivers.ndim > 1 else False
     if(self.is_multiple_flow == False):
       self.internal_chi = chiculation_SF(self.stack, self.receivers, self.nb_donors, self.donors, self.lengths, 
-        self.elevation.ravel(), self.flowacc.ravel(), self.theta_chi, self.A_0_chi, self.minAcc).reshape(self.ny,self.nx)
+        self.elevation.ravel(), self.flowacc.ravel(), self.A_0_chi, self.theta_chi, self.minAcc).reshape(self.ny,self.nx)
 
 
   @chi.compute
