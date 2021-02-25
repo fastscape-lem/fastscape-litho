@@ -179,42 +179,24 @@ def chiculation_SF(stack, receivers, nb_donors, donors, lengths, elevation, area
 def ksn_calculation_SF(elevation, chi, receivers, stack):
   
   ksn = np.zeros_like(chi.ravel())
-  n_0 = 0
-  n_ignored = 0
-
-  SI = np.zeros_like(stack) - 1
-  done = np.zeros_like(stack, dtype = nb.boolean)
-  tsi = 0
-  # Going top-to-bottom stack
-  for i in stack[::-1]:
-    if(done[i]):
-      continue
-
-    irec = receivers[i]
-    while(irec != i  and done[i] == False):
-      SI[i] = tsi
-      i = irec
-      irec = receivers[i]
-
-    tsi += 1
-
 
   for i in range(chi.shape[0]):
     irec = receivers[i]
-    if(irec == i or chi[i] == 0 or SI[i] != SI[irec]):
-      n_ignored += 1
+    if(irec == i or chi[i] == 0):
+      # n_ignored += 1
       continue
 
     ksn[i] = elevation[i] - elevation[irec]
     ksn[i] = ksn[i]/(chi[i] - chi[irec])
-    if(ksn[i] == 0):
-      n_0 += 1
+    # if(ksn[i] == 0):
+    #   n_0 += 1
 
     if(ksn[i]<0):
       ksn[i] = 0
   # print(n_ignored)
 
   return ksn
+
 
 
 
