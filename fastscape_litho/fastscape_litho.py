@@ -177,17 +177,26 @@ def chiculation_SF(stack, receivers, nb_donors, donors, lengths, elevation, area
 
 @nb.njit()
 def ksn_calculation_SF(elevation, chi, receivers):
-  ksn = np.zeros_like(chi)
+  
+  ksn = np.zeros_like(chi.ravel())
+  n_0 = 0
+  n_ignored = 0
+
   for i in range(chi.shape[0]):
-    irec = receivers [i]
+    irec = receivers[i]
     if(irec == i or chi[i] == 0):
+      n_ignored += 1
       continue
 
     ksn[i] = elevation[i] - elevation[irec]
     ksn[i] = ksn[i]/(chi[i] - chi[irec])
+    if(ksn[i] == 0):
+      n_0 += 1
 
     if(ksn[i]<0):
       ksn[i] = 0
+  # print(n_ignored)
+
   return ksn
 
 
@@ -263,7 +272,7 @@ class Quicksn:
   @ksn.compute
   def _ksn(self):
     if(self.is_multiple_flow == False):
-      return ksn_calculation_SF(self.elevation.ravel(), self.internal_chi, self.receivers).reshape(self.ny,self.nx)
+      return ksn_calculation_SF(self.elevation.ravel(), self.internal_chi.ravel(), self.receivers).reshape(self.ny,self.nx)
     else:
       return np.zeros_like(self.elevation)
 
