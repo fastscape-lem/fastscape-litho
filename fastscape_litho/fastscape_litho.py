@@ -175,6 +175,24 @@ def chiculation_SF(stack, receivers, nb_donors, donors, lengths, elevation, area
 
   return chi
 
+
+@nb.njit()
+def chiculation_MF(mstack, receivers, nb_receivers, lengths, weights, elevation, area, A0, theta, minAcc):
+
+
+  chi = np.zeros_like(mstack, dtype = np.float64)
+  for inode in mstack[::-1]:
+
+    if(nb_receivers[inode] == 0 or area[inode] < minAcc):
+      continue
+
+    chi[inode] = 0
+    for j in range(nb_receivers[inode]):
+      chi[inode] += weights[inode,j] * (chi[receivers[inode,j]] + lengths[inode,j]/2 * ( ((A0/area[inode]) ** theta)  + ((A0/area[receivers[inode,j]]) ** theta) ) )
+
+  return chi
+
+
 @nb.njit()
 def ksn_calculation_SF(elevation, chi, receivers, stack):
   
@@ -197,6 +215,55 @@ def ksn_calculation_SF(elevation, chi, receivers, stack):
 
   return ksn
 
+@nb.njit()
+def ksn_calculation_MF(elevation, chi, receivers,nb_receivers, weights, stack):
+  
+  ksn = np.zeros_like(chi.ravel())
+
+  for i in range(chi.shape[0]):
+    
+    if(chi[i] == 0):
+        continue
+
+    this_ksn = 0
+
+    for j in range(nb_receivers[i]):
+      irec = receivers[i,j]
+
+      this_this_ksn = elevation[i] - elevation[irec]
+      this_this_ksn = this_this_ksn/(chi[i] - chi[irec])
+      this_ksn += weights[i,j] * this_this_ksn
+
+      # if(ksn[i] == 0):
+      #   n_0 += 1
+    # print(n_ignored)
+    ksn[i] = this_ksn
+    if(ksn[i]<0):
+      ksn[i] = 0
+
+  return ksn
+
+
+@nb.njit()
+def slope_SF(elevation, receivers, lengths):
+  slope = np.zeros_like(elevation)
+  for i in range(receivers.shape[0]):
+    if(i == receivers[i]):
+      continue
+    slope[i] = (elevation[i] - elevation[receivers[i]])/lengths[i]
+  return slope
+
+@nb.njit()
+def slope_MF(elevation, receivers, lengths, nb_receivers, weights):
+  slope = np.zeros_like(elevation)
+  for i in range(receivers.shape[0]):
+    if(nb_receivers[i] == 0):
+      continue
+
+    for j in range(nb_receivers[i]):
+      slope[i] += weights[i,j] *  ((elevation[i] - elevation[receivers[i,j]])/lengths[i,j])
+    # slope[i] = slope[i]/nb_receivers[i]
+  return slope
 
 
 
@@ -220,6 +287,8 @@ class Quicksn:
 
   x = xs.foreign(UniformRectilinearGrid2D, 'x')
   y = xs.foreign(UniformRectilinearGrid2D, 'y')
+
+  fs_context = xs.foreign(FastscapelibContext, 'context')
 
   # FlowRouter
   elevation = xs.foreign(SurfaceToErode, 'elevation')
@@ -249,8 +318,18 @@ class Quicksn:
 
   ksn = xs.on_demand(
     dims=('y', 'x'),
-    description='Local k_sn index'
+    description='Local k_sn index (dz/dchi)'
     )
+
+  ksnSA = xs.on_demand(
+    dims=('y', 'x'),
+    description='Local k_sn index (ksn = S A ^ theta)'
+    )
+
+  # main_drainage_divide_migration_index = xs.on_demand(description = "Represents the main drainage divide variations at each time step")
+
+  def initialize(self):
+    self.was_DD = np.zeros((self.ny,self.nx), dtype = np.bool)
 
   def run_step(self):
     # Just checking if self.is_multiple_flow
@@ -258,14 +337,21 @@ class Quicksn:
     if(self.is_multiple_flow == False):
       self.internal_chi = chiculation_SF(self.stack, self.receivers, self.nb_donors, self.donors, self.lengths, 
         self.elevation.ravel(), self.flowacc.ravel(), self.A_0_chi, self.theta_chi, self.minAcc).reshape(self.ny,self.nx)
+    else:
+      self.internal_chi = chiculation_MF(self.stack, self.receivers, self.nb_receivers, self.lengths, self.weights, 
+        self.elevation, self.flowacc.ravel(), self.A_0_chi, self.theta_chi, self.minAcc)
 
+
+
+  def get_slope(self):
+    if(self.is_multiple_flow):
+      return slope_MF(self.elevation.ravel(), self.receivers, self.lengths, self.nb_receivers, self.weights)
+    else:
+      return slope_SF(self.elevation.ravel(), self.receivers, self.lengths)
 
   @chi.compute
   def _chi(self):
-    if(self.is_multiple_flow == False):
-      return self.internal_chi.reshape(self.ny,self.nx)
-    else:
-      return np.zeros_like(self.elevation)
+    return self.internal_chi.reshape(self.ny,self.nx)
     
 
   @ksn.compute
@@ -273,7 +359,20 @@ class Quicksn:
     if(self.is_multiple_flow == False):
       return ksn_calculation_SF(self.elevation.ravel(), self.internal_chi.ravel(), self.receivers, self.stack).reshape(self.ny,self.nx)
     else:
-      return np.zeros_like(self.elevation)
+      return ksn_calculation_MF(self.elevation.ravel(), self.internal_chi.ravel(), self.receivers,self.nb_receivers, self.weights, self.stack).reshape(self.ny,self.nx)
+
+  @ksnSA.compute
+  def _ksnSA(self):
+    ret = np.power(self.flowacc,self.theta_chi) * self.get_slope().reshape(self.ny,self.nx)
+    ret[self.flowacc<self.minAcc] = 0
+    return ret
+
+
+
+
+
+  # @main_drainage_divide_migration_index.compute
+  # def _mainmain_drainage_divide_migration_index():
 
 
 
