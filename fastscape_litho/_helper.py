@@ -1,5 +1,6 @@
 import numpy as np
 import numba as nb
+from ._looper import iterasator
 
 
 @nb.njit()
@@ -109,3 +110,58 @@ def slope_MF(elevation, receivers, lengths, nb_receivers, weights):
       slope[i] += weights[i,j] *  ((elevation[i] - elevation[receivers[i,j]])/lengths[i,j])
     # slope[i] = slope[i]/nb_receivers[i]
   return slope
+
+
+@nb.njit()
+def basination_SF(Sstack, receivers):
+  basins = np.zeros_like(Sstack, dtype = np.int32)
+  basin_ID = -1
+  for inode in Sstack:
+    if(inode == receivers[inode]):
+      basin_ID = inode
+    basins[inode] = basin_ID
+  return basins
+
+@nb.njit()
+def is_draiange_divide_SF(basins, iterator):
+  is_DD = np.zeros_like(basins, dtype = nb.boolean)
+  for i in range(basins.shape[0]):
+    val = basins[i]
+    for j in iterator.get_neighbouring_nodes(i):
+      if(j < 0 or is_DD[i] == 1):
+        continue
+      if(basins[j] != val):
+        is_DD[i] = 1
+        is_DD[j] = 1
+  return is_DD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  # End of file

@@ -36,7 +36,7 @@ from fastscape.processes.tectonics import (BlockUplift,
                                    TectonicForcing,
                                    TwoBlocksUplift)
 from ._looper import iterasator
-import fastscape_litho._helper as fhl.
+import fastscape_litho._helper as fhl
 
 
 
@@ -219,11 +219,11 @@ class Quicksn:
     description='Local k_sn index (ksn = S A ^ theta)'
     )
 
-  # main_drainage_divide_migration_index = xs.on_demand(description = "Represents the main drainage divide variations at each time step")
+  main_drainage_divides_migration_index = xs.on_demand(description = "Represents the main drainage divide variations at each time step")
 
   def initialize(self):
     # getting boundary conditions right for the iteratool
-    self.node_type = np.ones((self.ny,self.nx), dtype = np.int8)
+    self.node_type = np.ones((self.ny,self.nx), dtype = np.int16)
     #Was drainage divide is an intermediate checker
     self.was_DD = np.zeros((self.ny,self.nx), dtype = np.bool)
 
@@ -246,7 +246,7 @@ class Quicksn:
       self.node_type[-1,:] = 2
 
     # getting the iteratoolto work
-    self.iteratool = iterasator(self.node_type,self.nx,self.ny, self.dx, self.dy)
+    self.iteratool = iterasator(self.node_type.ravel(),self.nx,self.ny, self.dx, self.dy)
 
 
   def run_step(self):
@@ -258,6 +258,12 @@ class Quicksn:
     else:
       self.internal_chi = fhl.chiculation_MF(self.stack, self.receivers, self.nb_receivers, self.lengths, self.weights, 
         self.elevation, self.flowacc.ravel(), self.A_0_chi, self.theta_chi, self.minAcc)
+
+  def finalize_step(self):
+
+    basins = fhl.basination_SF(self.fs_context["stack"].astype('int') - 1, self.fs_context["rec"].astype('int') - 1)
+    self.was_DD = fhl.is_draiange_divide_SF(basins, self.iteratool).reshape(self.ny, self.nx)
+
 
 
 
@@ -289,8 +295,14 @@ class Quicksn:
 
 
 
-  # @main_drainage_divide_migration_index.compute
-  # def _mainmain_drainage_divide_migration_index():
+  @main_drainage_divides_migration_index.compute
+  def _main_drainage_divides_migration_index(self):
+    sst = self.fs_context["stack"].astype('int') - 1
+    # print(sst)
+    # print(self.receivers)
+    basins = fhl.basination_SF(sst, self.fs_context["rec"].astype('int') - 1)
+    is_DD = fhl.is_draiange_divide_SF(basins, self.iteratool).reshape(self.ny, self.nx)
+    return is_DD[(is_DD == 1) & (self.was_DD == 0) ].shape[0]
 
 
 
