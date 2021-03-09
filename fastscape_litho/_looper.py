@@ -100,6 +100,7 @@ class iterasator(object):
 		"""
 		r = node // self.nx
 		c = node % self.nx
+		return r,c
 
 
 
