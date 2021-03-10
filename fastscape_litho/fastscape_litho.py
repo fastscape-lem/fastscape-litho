@@ -109,12 +109,14 @@ class Label3D:
       self.precipitations = np.full(self.shape, self.precipitations, dtype = np.float64)
 
   def run_step(self):
+
     if(isinstance(self.cumulative_height,np.ndarray) ==  False):
       self.indices = np.zeros(self.shape, dtype = np.int32)
     else:
       calculate_indices(self.cumulative_height, self.z, self.dz, self.nz, self.origin_z, self.indices, self.labelmatrix )
 
     self.runoff = self.precipitations - self.infiltration_lab[self.indices]
+    # print(np.unique(self.runoff))
 
 
 
@@ -178,7 +180,7 @@ class StreamPowerChannelForeign(StreamPowerChannel):
   k_coef = xs.foreign(Label3DSPL,"k_coef")
 
 @xs.process
-class FlowAccumulatorForeign:
+class FlowAccumulatorForeign(FlowAccumulator):
     """Accumulate the flow from upstream to downstream."""
 
     runoff = xs.foreign(Label3D,"runoff")
@@ -197,20 +199,43 @@ class FlowAccumulatorForeign:
     )
 
     def run_step(self):
-        field = np.broadcast_to(
-            self.runoff * self.cell_area,
-            self.shape
-        ).flatten()
-
+        field = (self.runoff * self.cell_area).flatten()
+        # print("here1")
         if self.receivers.ndim == 1:
-            _flow_accumulate_sd(field, self.stack, self.receivers)
+            fhl._flow_accumulate_sd(field, self.stack, self.receivers)
 
         else:
-            _flow_accumulate_mfd(field, self.stack, self.nb_receivers,
+            fhl._flow_accumulate_mfd(field, self.stack, self.nb_receivers,
                                  self.receivers, self.weights)
 
         self.flowacc = field.reshape(self.shape)
-        self.flowacc[self.flowacc < 0] = 0
+        self.flowacc[self.flowacc <= 0] = 1
+        # print("here2:", self.flowacc)
+
+
+@xs.process
+class FlexureLabel(fastscape.processes.Flexure):
+  """Flexural isostatic effect of both erosion and tectonic
+  forcing.
+
+  """
+  lithos_density = xs.variable(
+      dims=[(), ('y', 'x')],
+      description='lithospheric rock density (in this case, given)',
+      intent = 'out'
+  )
+
+  rho_lab = xs.variable(dims = 'n_labels', description = 'Density value for each label')
+
+  indices = xs.foreign(Label3D, "indices")
+
+
+  def run_step(self):
+
+    self.lithos_density = self.rho_lab[self.indices]
+    super(FlexureLabel, self).run_step()
+
+
 
 
 ##############################################################

@@ -3,6 +3,27 @@ import numba as nb
 from ._looper import iterasator
 
 
+@nb.njit
+def _flow_accumulate_sd(field, stack, receivers):
+  for inode in stack[-1::-1]:
+    if receivers[inode] != inode:
+      field[receivers[inode]] += field[inode]
+    if(field[inode] < 0):
+      field[inode] = 0
+
+
+@nb.njit
+def _flow_accumulate_mfd(field, stack, nb_receivers, receivers, weights):
+  for inode in stack:
+    if nb_receivers[inode] == 1 and receivers[inode, 0] == inode:
+      continue
+
+    for k in range(nb_receivers[inode]):
+      irec = receivers[inode, k]
+      field[irec] += field[inode] * weights[inode, k]
+    if(field[inode] < 0):
+      field[inode] = 0
+
 @nb.njit()
 def chiculation_SF(stack, receivers, nb_donors, donors, lengths, elevation, area, A0, theta, minAcc):
 
