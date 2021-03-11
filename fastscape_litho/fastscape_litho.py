@@ -189,7 +189,7 @@ class StreamPowerChannelForeign(StreamPowerChannel):
 
 @xs.process
 class FlowAccumulatorForeign(FlowAccumulator):
-    """Accumulate the flow from upstream to downstream."""
+  """Accumulate the flow from upstream to downstream."""
 
   runoff = xs.variable(
     intent = 'out',
