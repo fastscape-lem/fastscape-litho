@@ -6,5 +6,6 @@ __version__ = '0.0.1'
 
 
 from .fastscape_litho import *
+from .TA import *
 from ._looper import *
 from ._helper import *
