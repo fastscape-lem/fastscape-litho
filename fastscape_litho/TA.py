@@ -77,6 +77,7 @@ class QuickTA:
   nb_donors = xs.foreign(FlowRouter, 'nb_donors')
   donors = xs.foreign(FlowRouter, 'donors')
   boundary_conditions = xs.foreign(BorderBoundary, "status")
+  erosion_rate = xs.foreign(TotalErosion, "rate")
 
   flowacc = xs.foreign(FlowAccumulator, 'flowacc')
 
@@ -106,7 +107,12 @@ class QuickTA:
   ksnSA = xs.on_demand(
     dims=('y', 'x'),
     description='Local k_sn index (ksn = S A ^ theta)'
-    )
+  )
+
+  ksnSA_cross_theta = xs.on_demand(
+    dims=('n_theta'),
+    description='Local k_sn index (ksn = S A ^ theta)'
+  )
 
   main_divide = xs.on_demand(
     dims=('y', 'x'),
@@ -270,12 +276,11 @@ class QuickTA:
          self.fs_context["don"].astype('int') - 1, self.fs_context["length"], 
           self.elevation.ravel(), self.flowacc.ravel(), self.A_0_chi, theta, self.minAcc)
 
-
-
       output = fhl.chi_contrast_across_divides(main_divide, this_chi.ravel(), self.iteratool, self.main_divide_contrast_distance )
       dfs.append(pd.DataFrame({"X": output[0], "Y": output[1], "chi_med_zone": output[2], "chi_med_others": output[3],
         "chi_max_zone": output[4], "chi_max_others": output[5], "zone": output[6].astype(np.int)}))
 
+      
     tds = xr.concat([df.to_xarray() for df in dfs], dim="thetas")
     tds["thetas"] = thetas
 
@@ -284,6 +289,116 @@ class QuickTA:
       tstep = "0" +  tstep
 
     tds.to_zarr(self.output_prefix + "%s_mainDDinfo.zarr"%(tstep))
+
+    return thetas
+
+  @ksnSA_cross_theta.compute
+  def _ksnSA_cross_theta(self):
+
+    dfs = []
+    
+    thetas = np.arange(0.05,1,0.05)
+    dfs = []
+
+    #Getting the basin in Single Flow direction
+    basins = fhl.basination_SF(self.fs_context["stack"].astype('int') - 1, self.fs_context["rec"].astype('int') - 1).ravel()
+    basin_size = []
+
+    basin_median_X = []
+    basin_1stQ_X = []
+    basin_3rdQ_X = []
+
+    basin_median_Y = []
+    basin_1stQ_Y = []
+    basin_3rdQ_Y = []
+
+    basin_median_ksn = []
+    basin_1stQ_ksn = []
+    basin_3rdQ_ksn = []
+
+    basin_median_DA = []
+    basin_1stQ_DA = []
+    basin_3rdQ_DA = []
+
+    basin_median_E = []
+    basin_1stQ_E = []
+    basin_3rdQ_E = []
+
+    nodeids = np.arange(self.nx * self.ny)
+
+    ksnftheta = {}
+    for theta in thetas:
+      tksn = np.power(self.flowacc.ravel(),theta) * self.get_slope()
+      ksnftheta[theta] = tksn
+
+    for bs in np.unique(basins):
+
+      mask = basins == bs
+      basin_size.append(basins[mask].shape[0] * self.nx* self.ny)
+      row,col = self.iteratool.node2rowcol(nodeids[mask])
+      X = col * self.nx + self.nx/2
+      Y = row * self.ny + self.ny/2
+      basin_median_X.append(np.median(X))
+      basin_1stQ_X.append(np.percentile(X,25))
+      basin_3rdQ_X.append(np.percentile(X,75))
+      basin_median_Y.append(np.median(Y))
+      basin_1stQ_Y.append(np.percentile(Y,25))
+      basin_3rdQ_Y.append(np.percentile(Y,75))
+      basin_median_DA.append(np.median(self.flowacc.ravel()[mask]))
+      basin_1stQ_DA.append(np.percentile(self.flowacc.ravel()[mask], 25))
+      basin_3rdQ_DA.append(np.percentile(self.flowacc.ravel()[mask], 75))
+      basin_median_E.append(np.median(self.erosion_rate.ravel()[mask]))
+      basin_1stQ_E.append(np.percentile(self.erosion_rate.ravel()[mask], 25))
+      basin_3rdQ_E.append(np.percentile(self.erosion_rate.ravel()[mask], 75))
+
+      tbasin_median_ksn = []
+      tbasin_1stQ_ksn = []
+      tbasin_3rdQ_ksn = []
+      for theta in thetas:
+        tksn = ksnftheta[theta]
+        tbasin_median_ksn.append(np.median(tksn[mask]))
+        tbasin_1stQ_ksn.append(np.percentile(tksn[mask], 25))
+        tbasin_3rdQ_ksn.append(np.percentile(tksn[mask], 75))
+
+      basin_median_ksn.append(tbasin_median_ksn)
+      basin_1stQ_ksn.append(tbasin_1stQ_ksn)
+      basin_3rdQ_ksn.append(tbasin_3rdQ_ksn)
+      
+      
+
+      # output = fhl.chi_contrast_across_divides(main_divide, this_chi.ravel(), self.iteratool, self.main_divide_contrast_distance )
+      # dfs.append(pd.DataFrame({"X": output[0], "Y": output[1], "chi_med_zone": output[2], "chi_med_others": output[3],
+      #   "chi_max_zone": output[4], "chi_max_others": output[5], "zone": output[6].astype(np.int)}))
+
+    # tds = xr.concat([df.to_xarray() for df in dfs], dim="thetas")
+    # tds["thetas"] = thetas
+    nbas = np.unique(basins).ravel().shape[0]
+    tds = xr.Dataset({
+      'n_basins': np.arange(nbas),
+      'thetas': thetas,
+      'basin_size': xr.DataArray(data = basin_size, dims = ('n_basins')),
+      'basin_median_X': xr.DataArray(data = basin_median_X, dims = ('n_basins')),
+      'basin_1stQ_X': xr.DataArray(data = basin_1stQ_X, dims = ('n_basins')),
+      'basin_3rdQ_X': xr.DataArray(data = basin_3rdQ_X, dims = ('n_basins')),
+      'basin_median_Y': xr.DataArray(data = basin_median_Y, dims = ('n_basins')),
+      'basin_1stQ_Y': xr.DataArray(data = basin_1stQ_Y, dims = ('n_basins')),
+      'basin_3rdQ_Y': xr.DataArray(data = basin_3rdQ_Y, dims = ('n_basins')),
+      'basin_median_ksn': xr.DataArray(data = basin_median_ksn, dims = ('n_basins', 'thetas')),
+      'basin_1stQ_ksn': xr.DataArray(data = basin_1stQ_ksn, dims = ('n_basins', 'thetas')),
+      'basin_3rdQ_ksn': xr.DataArray(data = basin_3rdQ_ksn, dims = ('n_basins', 'thetas')),
+      'basin_median_DA': xr.DataArray(data = basin_median_DA, dims = ('n_basins')),
+      'basin_1stQ_DA': xr.DataArray(data = basin_1stQ_DA, dims = ('n_basins')),
+      'basin_3rdQ_DA': xr.DataArray(data = basin_3rdQ_DA, dims = ('n_basins')),
+      'basin_median_E': xr.DataArray(data = basin_median_E, dims = ('n_basins')),
+      'basin_1stQ_E': xr.DataArray(data = basin_1stQ_E, dims = ('n_basins')),
+      'basin_3rdQ_E': xr.DataArray(data = basin_3rdQ_E, dims = ('n_basins'))
+    })
+
+    tstep = str(self.step)
+    while(len(tstep)<6):
+      tstep = "0" +  tstep
+
+    tds.to_zarr(self.output_prefix + "%s_ksn_per_basin_info.zarr"%(tstep))
 
     return thetas
 
