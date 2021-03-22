@@ -331,10 +331,14 @@ class QuickTA:
       tksn = np.power(self.flowacc.ravel(),theta) * self.get_slope()
       ksnftheta[theta] = tksn
 
+    nbas = 0
     for bs in np.unique(basins):
 
       mask = (basins == bs) & (self.flowacc.ravel() > self.minAcc)
-      basin_size.append(self.flowacc.ravel().max())
+      if(mask[mask==True].shape[0] == 0):
+        continue
+      nbas+=1
+      basin_size.append(self.flowacc.ravel()[mask].max())
       row,col = self.iteratool.node2rowcol(nodeids[mask])
       X = col * self.nx + self.nx/2
       Y = row * self.ny + self.ny/2
@@ -372,7 +376,7 @@ class QuickTA:
 
     # tds = xr.concat([df.to_xarray() for df in dfs], dim="thetas")
     # tds["thetas"] = thetas
-    nbas = np.unique(basins).ravel().shape[0]
+    # nbas = np.unique(basins).ravel().shape[0]
     tds = xr.Dataset({
       'n_basins': np.arange(nbas),
       'thetas': thetas,
