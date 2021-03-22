@@ -333,8 +333,8 @@ class QuickTA:
 
     for bs in np.unique(basins):
 
-      mask = basins == bs
-      basin_size.append(basins[mask].shape[0] * self.nx* self.ny)
+      mask = (basins == bs) & (self.flowacc.ravel() > self.minAcc)
+      basin_size.append(self.flowacc.ravel().max())
       row,col = self.iteratool.node2rowcol(nodeids[mask])
       X = col * self.nx + self.nx/2
       Y = row * self.ny + self.ny/2
