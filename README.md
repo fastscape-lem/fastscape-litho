@@ -5,6 +5,17 @@ Feeding fastscape with a 3D bloc of lithology with differential erodibility, dif
 * Free software: BSD license
 <!-- * Documentation: https://fastscape-litho.readthedocs.io. -->
 
+# Quick Start
+
+You need to install [`fastscape`](https://github.com/fastscape-lem/fastscape), with all dependencies and all. Then, you can simply:
+
+```
+pip install fastscape-litho
+```
+
+Note that you need to be in the fastscape environment. `conda-forge` package to come!
+
+
 # Features
 
 - 3D input of parameters
@@ -15,15 +26,10 @@ Feeding fastscape with a 3D bloc of lithology with differential erodibility, dif
 
 - Initialization with existing topography -> *soon*
 - Allow different geometry for the 3D bloc (e.g. different dx and dy) -> *soon*
-- 3D rock density for flexure and isostasy -> **WIP**
+- 3D rock density for flexure and isostasy -> **Kind Of Here But Deserves More Thoughts**
 - 3D infiltration compatible with 2D precipitation -> **WIP**
 - landscape parametrization (template of geological 3D blocs) -> *future*
 - Bridge between [`gempy`](https://www.gempy.org/) and `fastscape-litho` -> *future*
-
-# Getting started
-
-## Installation
-
 
 
 # Credits
