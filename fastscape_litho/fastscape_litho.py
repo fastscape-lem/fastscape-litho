@@ -1,4 +1,7 @@
-"""Main module."""
+"""
+This module contains the xarray-simlab processes related to the 3D cube of lithology.
+B.G.
+"""
 import numpy as np
 import numba as nb
 import xarray as xr
@@ -50,13 +53,12 @@ import fastscape_litho._helper as fhl
 @nb.njit()
 def calculate_indices(cumulative_height, z, dz, nz, oz, indices, labelmatrix ):
   '''
-    Calculates the indices from te 3D matrix functio of the depth
+    Helper function calculating the intercept indices from the 3D matrix functio of the depth
   '''
+  # Iterating through the rows (i) and col (j)
   for i in range(indices.shape[0]):
     for j in range(indices.shape[1]):
-      # if(cumulative_height.shape[0] == 0):
-      #   this_id = 0
-      #   continue
+
       this_id = math.ceil((cumulative_height[i,j] - oz)/dz)
       if(this_id >= nz):
         indices[i,j] = -1

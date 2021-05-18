@@ -376,7 +376,7 @@ class QuickTA:
 
     # tds = xr.concat([df.to_xarray() for df in dfs], dim="thetas")
     # tds["thetas"] = thetas
-    # nbas = np.unique(basins).ravel().shape[0]
+    # nbas = np.unique(basins).ravel().basishape[0]
     tds = xr.Dataset({
       'n_basins': np.arange(nbas),
       'thetas': thetas,
