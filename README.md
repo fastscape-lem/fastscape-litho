@@ -1,5 +1,7 @@
 # fastscape_litho
 
+[![DOI](https://zenodo.org/badge/342188636.svg)](https://zenodo.org/badge/latestdoi/342188636)
+
 Feeding fastscape with a 3D bloc of lithology with differential erodibility, diffusion and other. The input requires one 3D matrix of integer labels (0,1,2,3,4,...) and a list of label correspondence for each rock type specific parameters. The current version of the package includes basic functions to run erosion through a 3D bloc from a flat surface (see features). Future versions will include more feature, it highly depends how fast projects related to this components arises. Feel free to contact me if you are interested to see a specific feature getting developed! 
 
 * Free software: BSD license
